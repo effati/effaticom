@@ -21,7 +21,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Gloock&display=swap"
           rel="stylesheet"
         />
       </head>

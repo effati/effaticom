@@ -14,6 +14,7 @@ export default {
       },
       fontFamily: {
         sans: ["Bagel Fat One", "sans-serif"],
+        serif: ["Gloock", "serif"],
       },
       animation: {
         sparkle: "sparkle 3s infinite ease-in-out",

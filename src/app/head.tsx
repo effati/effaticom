@@ -46,7 +46,7 @@ export default function HeadViewer() {
   return (
     <Canvas camera={{ position: [0, 0, 5] }}>
       <ambientLight intensity={0.8} />
-      {/* <directionalLight position={[10, 10, 5]} intensity={1} /> */}
+      <directionalLight position={[10, 10, 5]} intensity={1} />
       <pointLight position={[0, 10, 10]} intensity={0.8} />
       <RotatingHead />
       <OrbitControls

@@ -19,13 +19,13 @@ function RotatingHead() {
 
   useFrame(() => {
     angle += 0.01;
-    const horizontalRadius = 3;
-    const depthRadius = 5;
-    const verticalRadius = 3;
+    const horizontalRadius = 4;
+    const depthRadius = 2.5;
+    const verticalRadius = 1;
 
     camera.position.set(
-      Math.sin(angle) * horizontalRadius,
-      Math.sin(angle) * verticalRadius,
+      Math.max(2, Math.sin(angle) * horizontalRadius),
+      Math.cos(angle) * verticalRadius,
       Math.cos(angle) * depthRadius
     );
     camera.lookAt(0, 0, 0);
@@ -36,7 +36,7 @@ function RotatingHead() {
       object={scene}
       ref={modelRef}
       position={[0, 0, 0]}
-      rotation={[0, 0, 0.6]}
+      rotation={[0, 5, 0]}
       scale={[10, 10, 10]}
     />
   );

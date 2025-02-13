@@ -3,14 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --background: #f0e6e6;
-  --foreground: #171717;
+  --background: #FFEE8C;
+  --foreground: #162F65;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #162F65;
+    --foreground: #FFEE8C;
   }
 }
 
@@ -18,4 +18,27 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.text-bagel {
+  font-family: "Bagel Fat One", serif;
+  font-weight: 400;
+  font-style: normal;
+  font-size: xx-large;
+  display: inline-block;
+  transition: transform 1s ease; 
+  color: var(--foreground)
+}
+
+.text-bagel:hover {
+  animation: bounce 1s infinite cubic-bezier(0.6, 0, 0.2, 1);
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0); 
+  }
+  30% {
+    transform: translateY(-15px);
+  }
 }

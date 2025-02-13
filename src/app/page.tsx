@@ -1,9 +1,13 @@
 import { Main } from "./main";
+import Sparkles from "./sparkles";
 
-export default function Home() {
+export const Home = () => {
   return (
     <main>
+      <Sparkles />
       <Main />
     </main>
   );
-}
+};
+
+export default Home;

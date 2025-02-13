@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Shayan Effati",
-  description: "",
+  description: "my personal website",
 };
 
 export default function RootLayout({

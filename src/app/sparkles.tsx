@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
-const POOL_SIZE = 900;
+const POOL_SIZE = 2500;
 const FADE_START = 60;
 const FADE_END = 20;
 
-
-interface ParticleState {
+interface Particle {
   px: number;
   py: number;
   vx: number;
@@ -16,28 +15,72 @@ interface ParticleState {
   alive: boolean;
   phase: number;
   speed: number;
+  rotation: number;
+  rotSpeed: number;
+  scale: number;
+  scalePhase: number;
+}
+
+const GRID_COLS = 10;
+const GRID_ROWS = 8;
+const gridCounts = new Int32Array(GRID_COLS * GRID_ROWS);
+
+function buildDensityGrid(particles: Particle[], w: number, h: number) {
+  gridCounts.fill(0);
+  const cellW = w / GRID_COLS;
+  const cellH = h / GRID_ROWS;
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    if (!p.alive) continue;
+    const col = Math.min(GRID_COLS - 1, Math.max(0, Math.floor(p.px / cellW)));
+    const row = Math.min(GRID_ROWS - 1, Math.max(0, Math.floor(p.py / cellH)));
+    gridCounts[row * GRID_COLS + col]++;
+  }
+}
+
+function pickSparseCell(): number {
+  // Weight cells inversely by density — emptier cells are more likely
+  let totalWeight = 0;
+  const total = GRID_COLS * GRID_ROWS;
+  for (let i = 0; i < total; i++) {
+    totalWeight += 1 / (1 + gridCounts[i]);
+  }
+  let r = Math.random() * totalWeight;
+  for (let i = 0; i < total; i++) {
+    r -= 1 / (1 + gridCounts[i]);
+    if (r <= 0) return i;
+  }
+  return total - 1;
 }
 
 function spawnParticle(
-  p: ParticleState,
+  p: Particle,
   mx: number,
   my: number,
   hasMouse: boolean,
   w: number,
   h: number
 ) {
-  // Spawn randomly across screen, but far enough from cursor
+  const cellW = w / GRID_COLS;
+  const cellH = h / GRID_ROWS;
+  const cell = pickSparseCell();
+  const col = cell % GRID_COLS;
+  const row = Math.floor(cell / GRID_COLS);
+  p.px = (col + Math.random()) * cellW;
+  p.py = (row + Math.random()) * cellH;
+
+  // If cursor is active, try to avoid spawning right on top of it
   if (hasMouse) {
-    for (let attempt = 0; attempt < 10; attempt++) {
-      p.px = Math.random() * w;
-      p.py = Math.random() * h;
-      const dx = p.px - mx;
-      const dy = p.py - my;
-      if (Math.sqrt(dx * dx + dy * dy) > 150) break;
+    const dx = p.px - mx;
+    const dy = p.py - my;
+    if (Math.sqrt(dx * dx + dy * dy) < 80) {
+      // Nudge to a different sparse cell
+      const cell2 = pickSparseCell();
+      const col2 = cell2 % GRID_COLS;
+      const row2 = Math.floor(cell2 / GRID_COLS);
+      p.px = (col2 + Math.random()) * cellW;
+      p.py = (row2 + Math.random()) * cellH;
     }
-  } else {
-    p.px = Math.random() * w;
-    p.py = Math.random() * h;
   }
   p.vx = 0;
   p.vy = 0;
@@ -45,36 +88,55 @@ function spawnParticle(
   p.alive = true;
   p.phase = Math.random() * Math.PI * 2;
   p.speed = 0.3 + Math.random() * 0.7;
+  p.rotation = Math.random() * Math.PI * 2;
+  p.rotSpeed = (Math.random() - 0.5) * 0.02;
+  p.scale = 0.5 + Math.random() * 0.6;
+  p.scalePhase = Math.random() * Math.PI * 2;
+}
+
+function createParticle(): Particle {
+  return {
+    px: 0,
+    py: 0,
+    vx: 0,
+    vy: 0,
+    opacity: 0,
+    alive: false,
+    phase: Math.random() * Math.PI * 2,
+    speed: 0.3 + Math.random() * 0.7,
+    rotation: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 0.02,
+    scale: 0.5 + Math.random() * 0.6,
+    scalePhase: Math.random() * Math.PI * 2,
+  };
 }
 
 export const Sparkles = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: -1, y: -1 });
-  const particlesRef = useRef<ParticleState[]>([]);
-  const elRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [mounted, setMounted] = useState(false);
+  const particlesRef = useRef<Particle[]>([]);
 
-  // Initialize particle pool once
   if (particlesRef.current.length === 0) {
     for (let i = 0; i < POOL_SIZE; i++) {
-      particlesRef.current[i] = {
-        px: 0,
-        py: 0,
-        vx: 0,
-        vy: 0,
-        opacity: 0,
-        alive: false,
-        phase: Math.random() * Math.PI * 2,
-        speed: 0.3 + Math.random() * 0.7,
-      };
+      particlesRef.current[i] = createParticle();
     }
   }
 
   useEffect(() => {
-    setMounted(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    // Initial spawn across screen
+    // Initial spawn
     const w = window.innerWidth;
     const h = window.innerHeight;
+    canvas.width = w * devicePixelRatio;
+    canvas.height = h * devicePixelRatio;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
     for (let i = 0; i < POOL_SIZE; i++) {
       const p = particlesRef.current[i];
       p.px = Math.random() * w;
@@ -82,29 +144,54 @@ export const Sparkles = () => {
       p.opacity = Math.random() * 0.6 + 0.2;
       p.alive = true;
     }
-  }, []);
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    // Read CSS color
+    const style = getComputedStyle(document.documentElement);
+    let color = style.getPropertyValue("--foreground").trim();
+
+    // Handle resize
+    const onResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      canvas.width = w * devicePixelRatio;
+      canvas.height = h * devicePixelRatio;
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    };
+    window.addEventListener("resize", onResize);
+
+    // Watch for color scheme changes
+    const colorQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const onColorChange = () => {
+      color = getComputedStyle(document.documentElement)
+        .getPropertyValue("--foreground")
+        .trim();
+    };
+    colorQuery.addEventListener("change", onColorChange);
+
+    // Mouse
+    const onMouseMove = (e: MouseEvent) => {
       mouseRef.current.x = e.clientX;
       mouseRef.current.y = e.clientY;
     };
-    const handleMouseLeave = () => {
+    const onMouseLeave = () => {
       mouseRef.current.x = -1;
       mouseRef.current.y = -1;
     };
-    window.addEventListener("mousemove", handleMouseMove);
-    document.documentElement.addEventListener("mouseleave", handleMouseLeave);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      document.documentElement.removeEventListener(
-        "mouseleave",
-        handleMouseLeave
-      );
-    };
-  }, []);
+    window.addEventListener("mousemove", onMouseMove);
+    document.documentElement.addEventListener("mouseleave", onMouseLeave);
 
-  useEffect(() => {
+    // Parse hex color to r,g,b for alpha compositing
+    function hexToRgb(hex: string): [number, number, number] {
+      hex = hex.replace("#", "");
+      return [
+        parseInt(hex.substring(0, 2), 16),
+        parseInt(hex.substring(2, 4), 16),
+        parseInt(hex.substring(4, 6), 16),
+      ];
+    }
+
     let animId: number;
     let time = 0;
 
@@ -115,19 +202,20 @@ export const Sparkles = () => {
       const hasMouse = mx >= 0 && my >= 0;
       const w = window.innerWidth;
       const h = window.innerHeight;
+      const [r, g, b] = hexToRgb(color);
+
+      ctx.clearRect(0, 0, w, h);
+
+      buildDensityGrid(particlesRef.current, w, h);
 
       for (let i = 0; i < POOL_SIZE; i++) {
         const p = particlesRef.current[i];
-        const el = elRefs.current[i];
-        if (!el) continue;
 
-        // Respawn dead particles immediately
         if (!p.alive) {
           spawnParticle(p, mx, my, hasMouse, w, h);
         }
 
         if (hasMouse) {
-          // Flow toward cursor
           const dx = mx - p.px;
           const dy = my - p.py;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -135,84 +223,83 @@ export const Sparkles = () => {
           if (dist > 0.1) {
             const angle = Math.atan2(dy, dx);
             const falloff = Math.max(0, 1 - dist / 1200);
-            const strength = 0.08 * falloff;
+            const strength = 0.04 * falloff;
             p.vx += Math.cos(angle) * strength;
             p.vy += Math.sin(angle) * strength;
           }
 
-          // Fade based on distance to cursor
           if (dist < FADE_START) {
             const fadeRange = FADE_START - FADE_END;
             const t = Math.max(0, (dist - FADE_END) / fadeRange);
             p.opacity = t;
           } else {
-            // Fade in gradually
             p.opacity = Math.min(1, p.opacity + 0.02);
           }
 
-          // Kill if too close
           if (dist < FADE_END) {
             p.alive = false;
-            el.style.opacity = "0";
             continue;
           }
         } else {
-          // No cursor: gentle ambient drift
           const t = time * p.speed + p.phase;
           const targetVx = Math.sin(t) * 0.1;
           const targetVy = Math.cos(t * 0.7) * 0.12;
           p.vx += (targetVx - p.vx) * 0.01;
           p.vy += (targetVy - p.vy) * 0.01;
-
-          // Fade in
           p.opacity = Math.min(1, p.opacity + 0.01);
         }
 
-        // Damping
         p.vx *= 0.97;
         p.vy *= 0.97;
-
-        // Update position
         p.px += p.vx;
         p.py += p.vy;
 
-        // Wrap around edges so particles don't fly off forever
         if (p.px < -20) p.px = w + 20;
         if (p.px > w + 20) p.px = -20;
         if (p.py < -20) p.py = h + 20;
         if (p.py > h + 20) p.py = -20;
 
-        // Update DOM
-        el.style.translate = `${p.px}px ${p.py}px`;
-        el.style.opacity = String(p.opacity);
+        // Draw particle as a wobbly blob
+        if (p.opacity > 0.01) {
+          const s = p.scale * (0.8 + 0.2 * Math.sin(time * 0.5 + p.scalePhase));
+          // Wobble the shape based on time and particle phase
+          const wobX = 1 + 0.3 * Math.sin(time * 3 + p.phase);
+          const wobY = 1 + 0.3 * Math.cos(time * 2.5 + p.phase * 1.3);
+          const radius = 2.5 * s;
+
+          ctx.save();
+          ctx.translate(p.px, p.py);
+          ctx.rotate(p.rotation + time * p.rotSpeed * 2);
+          ctx.scale(wobX, wobY);
+          ctx.globalAlpha = p.opacity;
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
       }
 
       animId = requestAnimationFrame(animate);
     };
 
     animId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animId);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("mousemove", onMouseMove);
+      document.documentElement.removeEventListener("mouseleave", onMouseLeave);
+      colorQuery.removeEventListener("change", onColorChange);
+    };
   }, []);
 
-  if (!mounted) return <div className="fixed inset-0 -z-10" />;
-
   return (
-    <div className="fixed inset-0 -z-10">
-      {Array.from({ length: POOL_SIZE }, (_, i) => (
-        <div
-          key={i}
-          ref={(el) => {
-            elRefs.current[i] = el;
-          }}
-          className="absolute top-0 left-0 w-0.5 h-2 bg-foreground rounded-full animate-sparkle"
-          style={{
-            opacity: 0,
-            animationDuration: `${Math.random() * 3 + 10}s`,
-            animationDelay: `${Math.random() * 2}s`,
-          }}
-        />
-      ))}
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 -z-10"
+      style={{ pointerEvents: "none" }}
+    />
   );
 };
 

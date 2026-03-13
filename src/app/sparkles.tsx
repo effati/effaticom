@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const POOL_SIZE = 700;
+const POOL_SIZE = 900;
 const FADE_START = 60;
 const FADE_END = 20;
 
-const RESPAWNS_PER_FRAME = 15;
 
 interface ParticleState {
   px: number;
@@ -27,22 +26,14 @@ function spawnParticle(
   w: number,
   h: number
 ) {
-  // Spawn along screen edges so corners stay populated
+  // Spawn randomly across screen, but far enough from cursor
   if (hasMouse) {
-    const edge = Math.floor(Math.random() * 4);
-    const margin = 40;
-    if (edge === 0) {        // top
+    for (let attempt = 0; attempt < 10; attempt++) {
       p.px = Math.random() * w;
-      p.py = Math.random() * margin;
-    } else if (edge === 1) { // bottom
-      p.px = Math.random() * w;
-      p.py = h - Math.random() * margin;
-    } else if (edge === 2) { // left
-      p.px = Math.random() * margin;
       p.py = Math.random() * h;
-    } else {                 // right
-      p.px = w - Math.random() * margin;
-      p.py = Math.random() * h;
+      const dx = p.px - mx;
+      const dy = p.py - my;
+      if (Math.sqrt(dx * dx + dy * dy) > 150) break;
     }
   } else {
     p.px = Math.random() * w;
@@ -125,22 +116,14 @@ export const Sparkles = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
 
-      let respawnBudget = RESPAWNS_PER_FRAME;
-
       for (let i = 0; i < POOL_SIZE; i++) {
         const p = particlesRef.current[i];
         const el = elRefs.current[i];
         if (!el) continue;
 
-        // Respawn dead particles
+        // Respawn dead particles immediately
         if (!p.alive) {
-          if (respawnBudget > 0) {
-            spawnParticle(p, mx, my, hasMouse, w, h);
-            respawnBudget--;
-          } else {
-            el.style.opacity = "0";
-            continue;
-          }
+          spawnParticle(p, mx, my, hasMouse, w, h);
         }
 
         if (hasMouse) {

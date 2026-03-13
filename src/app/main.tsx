@@ -26,7 +26,6 @@ function WobblyBorder({ children }: { children: React.ReactNode }) {
 
   const buildPath = useCallback(
     (w: number, h: number, time: number, mx: number, my: number) => {
-      const pad = 40;
       const segments = 40;
       const baseAmp = 4;
       const freq = 0.08;

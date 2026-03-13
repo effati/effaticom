@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 const POOL_SIZE = 700;
 const FADE_START = 60;
 const FADE_END = 20;
-const SPAWN_MIN_DIST = 300;
+
 const RESPAWNS_PER_FRAME = 15;
 
 interface ParticleState {

@@ -21,26 +21,11 @@ export default {
       },
       keyframes: {
         sparkle: {
-          "0%": { 
-            transform: "translate(0, 0) rotate(0deg) scale(0.5)", 
-            opacity: "0.6" 
-          },
-          "25%": { 
-            transform: "translate(40px, -30px) rotate(45deg) scale(1)", 
-            opacity: "1" 
-          },
-          "50%": { 
-            transform: "translate(-30px, 60px) rotate(90deg) scale(0.8)", 
-            opacity: "0.8" 
-          },
-          "75%": { 
-            transform: "translate(30px, -50px) rotate(135deg) scale(1.1)", 
-            opacity: "0.9" 
-          },
-          "100%": { 
-            transform: "translate(-50px, 30px) rotate(180deg) scale(0.5)", 
-            opacity: "0.6" 
-          },
+          "0%": { transform: "rotate(0deg) scale(0.5)" },
+          "25%": { transform: "rotate(45deg) scale(1)" },
+          "50%": { transform: "rotate(90deg) scale(0.8)" },
+          "75%": { transform: "rotate(135deg) scale(1.1)" },
+          "100%": { transform: "rotate(180deg) scale(0.5)" },
         },
       },
     },

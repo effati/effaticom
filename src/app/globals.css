@@ -22,7 +22,7 @@ body {
 
 @layer base {
   h1 {
-    font-size: 400px; 
+    font-size: clamp(200px, 25vw, 400px);
     font-family: "Gloock", serif;
     line-height: 0.8;
     color: rgba(0, 0, 0, 0.1);
@@ -34,18 +34,35 @@ body {
   font-weight: 400;
   font-style: normal;
   font-size: xx-large;
-  display: inline-block;
-  transition: transform 1s ease; 
-  color: var(--foreground)
+  color: var(--foreground);
 }
 
-.text-bagel:hover {
+.text-bio {
+  margin-bottom: 0;
+  font-size: xxx-large;
+}
+
+.text-location {
+  font-family: "Bagel Fat One", serif;
+  font-size: large;
+  color: var(--foreground);
+  opacity: 0.6;
+  margin-bottom: 12px;
+}
+
+.text-bagel a {
+  display: inline-block;
+  transition: transform 1s ease;
+  padding-bottom: 15px;
+}
+
+.text-bagel a:hover {
   animation: bounce 1s infinite cubic-bezier(0.6, 0, 0.2, 1);
 }
 
 @keyframes bounce {
   0%, 100% {
-    transform: translateY(0); 
+    transform: translateY(0);
   }
   30% {
     transform: translateY(-15px);

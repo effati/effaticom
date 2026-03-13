@@ -22,10 +22,10 @@ body {
 
 @layer base {
   h1 {
-    font-size: clamp(200px, 25vw, 400px);
+    font-size: clamp(100px, 15vw, 250px);
     font-family: "Gloock", serif;
     line-height: 0.8;
-    color: rgba(0, 0, 0, 0.1);
+    color: var(--foreground);
   }
 }
 
@@ -35,11 +35,6 @@ body {
   font-style: normal;
   font-size: xx-large;
   color: var(--foreground);
-}
-
-.text-bio {
-  margin-bottom: 0;
-  font-size: xxx-large;
 }
 
 .text-location {

@@ -18,6 +18,131 @@ function useGeoGuessrRank() {
   return rank;
 }
 
+const LETTERS_1 = "Shayan".split("");
+const LETTERS_2 = "Effati".split("");
+const ALL_LETTERS = [...LETTERS_1, " ", ...LETTERS_2];
+
+function WobblyText() {
+  const letterRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const mouseRef = useRef({ x: -1, y: -1 });
+  const scalesRef = useRef<number[]>(ALL_LETTERS.map(() => 0));
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      mouseRef.current.x = e.clientX;
+      mouseRef.current.y = e.clientY;
+    };
+    const onLeave = () => {
+      mouseRef.current.x = -1;
+      mouseRef.current.y = -1;
+    };
+    window.addEventListener("mousemove", onMove);
+    document.documentElement.addEventListener("mouseleave", onLeave);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      document.documentElement.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
+
+  useEffect(() => {
+    let animId: number;
+
+    const animate = () => {
+      const mx = mouseRef.current.x;
+      const my = mouseRef.current.y;
+      const hasMouse = mx >= 0 && my >= 0;
+
+      for (let i = 0; i < ALL_LETTERS.length; i++) {
+        const el = letterRefs.current[i];
+        if (!el) continue;
+
+        let targetScale = 0;
+        if (hasMouse) {
+          const rect = el.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dist = Math.sqrt((mx - cx) ** 2 + (my - cy) ** 2);
+          const influence = Math.max(0, 1 - dist / 200);
+          targetScale = influence * 30;
+        }
+
+        scalesRef.current[i] += (targetScale - scalesRef.current[i]) * 0.08;
+        const s = scalesRef.current[i];
+        el.style.filter = s > 0.1 ? `url(#wobbly-${i})` : "none";
+      }
+
+      animId = requestAnimationFrame(animate);
+    };
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center select-none">
+      <svg className="absolute w-0 h-0">
+        <defs>
+          {ALL_LETTERS.map((_, i) => (
+            <filter key={i} id={`wobbly-${i}`}>
+              <feTurbulence
+                type="turbulence"
+                baseFrequency="0.015 0.02"
+                numOctaves={2}
+                seed={i * 7}
+                result="turbulence"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="turbulence"
+                scale={0}
+                xChannelSelector="R"
+                yChannelSelector="G"
+                ref={(el) => {
+                  if (el) {
+                    // Update scale in animation loop
+                    const idx = i;
+                    const update = () => {
+                      const s = scalesRef.current[idx];
+                      el.setAttribute("scale", String(s));
+                      requestAnimationFrame(update);
+                    };
+                    requestAnimationFrame(update);
+                  }
+                }}
+              />
+            </filter>
+          ))}
+        </defs>
+      </svg>
+      <h1>
+        {LETTERS_1.map((letter, i) => (
+          <span
+            key={i}
+            ref={(el) => { letterRefs.current[i] = el; }}
+            className="inline-block"
+          >
+            {letter}
+          </span>
+        ))}
+      </h1>
+      <h1>
+        {LETTERS_2.map((letter, i) => {
+          const idx = LETTERS_1.length + 1 + i;
+          return (
+            <span
+              key={idx}
+              ref={(el) => { letterRefs.current[idx] = el; }}
+              className="inline-block"
+            >
+              {letter}
+            </span>
+          );
+        })}
+      </h1>
+      <p className="text-location mt-2">Stockholm, Sweden</p>
+    </div>
+  );
+}
+
 function WobblyBorder({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -78,7 +203,7 @@ function WobblyBorder({ children }: { children: React.ReactNode }) {
             const dy = my - worldY;
             const dist = Math.sqrt(dx * dx + dy * dy);
             const influence = Math.max(0, 1 - dist / 200);
-            amp += influence * 12 * Math.sin(d * 0.15 + time * 3);
+            amp += influence * 30 * Math.sin(d * 0.15 + time * 3);
           }
         }
 
@@ -186,24 +311,22 @@ export const Main = () => {
   const geoRank = useGeoGuessrRank();
 
   return (
-    <div className="flex flex-col gap-6 items-center justify-center min-h-screen p-8 sm:p-20">
-      <div className="flex flex-col gap-4 items-center fixed inset-0 -z-10 top-[100px]">
-        <h1>Shayan</h1>
-        <h1>Effati</h1>
-      </div>
-      <div className="w-[min(500px,90vw)] h-[min(500px,90vw)]">
-        <HeadViewer />
-      </div>
-      <WobblyBorder>
-        <div className="flex flex-col gap-1 items-start p-8">
-          <p className="text-bagel text-bio">Engineer at <a href="https://freda.com/" target="_blank" className="underline">Freda</a></p>
-          <p className="text-location">Stockholm, Sweden</p>
-          <p className="text-bagel">Music producer with music on <a target="_blank" href="https://open.spotify.com/artist/3cE0oEYeqTYJCuoyqF6Kz2" className="underline">Spotify</a></p>
-          <p className="text-bagel">Geoguessr ranked duels player{geoRank ? <>{" "}<a target="_blank" href="https://www.geoguessr.com/user/66d8d72d090048eaa472f4bf" className="underline">{geoRank}</a></> : ""}</p>
-          <p className="text-bagel">Professional contact at <a target="_blank" href="https://www.linkedin.com/in/shayaneffati/" className="underline">LinkedIn</a></p>
-          <p className="text-bagel">Uninstalled my <a target="_blank" href="https://www.instagram.com/tjajan/" className="underline">Instagram</a>, but my profile is there</p>
+    <div className="flex flex-col gap-6 items-center justify-center min-h-screen p-8 sm:p-20 overflow-x-hidden">
+      <WobblyText />
+      <div className="flex flex-col lg:flex-row items-center gap-6 mt-6">
+        <WobblyBorder>
+          <div className="flex flex-col gap-1 items-start p-8">
+            <p className="text-bagel">Engineer at <a href="https://freda.com/" target="_blank" className="underline">Freda</a></p>
+            <p className="text-bagel">Music producer with music on <a target="_blank" href="https://open.spotify.com/artist/3cE0oEYeqTYJCuoyqF6Kz2" className="underline">Spotify</a></p>
+            <p className="text-bagel">Geoguessr ranked duels player{geoRank ? <>{" "}<a target="_blank" href="https://www.geoguessr.com/user/66d8d72d090048eaa472f4bf" className="underline">{geoRank}</a></> : ""}</p>
+            <p className="text-bagel">Professional contact at <a target="_blank" href="https://www.linkedin.com/in/shayaneffati/" className="underline">LinkedIn</a></p>
+            <p className="text-bagel">Uninstalled my <a target="_blank" href="https://www.instagram.com/tjajan/" className="underline">Instagram</a>, but my profile is there</p>
+          </div>
+        </WobblyBorder>
+        <div className="w-[min(500px,90vw)] h-[min(500px,90vw)] shrink-0">
+          <HeadViewer />
         </div>
-      </WobblyBorder>
+      </div>
     </div>
   );
 };

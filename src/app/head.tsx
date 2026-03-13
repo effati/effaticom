@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-const mouse = { x: 0, y: 0, hasMouse: false };
+const mouse = { x: 0, y: 0, hasMouse: false, screenX: 0, screenY: 0, centerX: 0, centerY: 0 };
 
 function RotatingHead() {
   const modelRef = useRef<THREE.Group>(null);
@@ -60,11 +60,28 @@ function RotatingHead() {
 }
 
 export default function HeadViewer() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       mouse.hasMouse = true;
-      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      const el = containerRef.current;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        // Store the center of the container and cursor position
+        mouse.centerX = rect.left + rect.width / 2;
+        mouse.centerY = rect.top + rect.height / 2;
+        mouse.screenX = e.clientX;
+        mouse.screenY = e.clientY;
+        // Direction from head center to cursor, normalized and clamped
+        const dx = e.clientX - mouse.centerX;
+        const dy = e.clientY - mouse.centerY;
+        const maxDist = 600;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const scale = Math.min(1, dist / maxDist);
+        mouse.x = (dx / (dist || 1)) * scale;
+        mouse.y = -(dy / (dist || 1)) * scale;
+      }
     };
     const handleMouseLeave = () => {
       mouse.hasMouse = false;
@@ -78,6 +95,7 @@ export default function HeadViewer() {
   }, []);
 
   return (
+    <div ref={containerRef} className="w-full h-full">
     <Canvas camera={{ position: [0, 0, 5] }}>
       <ambientLight intensity={0.8} />
       <directionalLight position={[10, 10, 5]} intensity={1} />
@@ -89,5 +107,6 @@ export default function HeadViewer() {
         enablePan={false}
       />
     </Canvas>
+    </div>
   );
 }

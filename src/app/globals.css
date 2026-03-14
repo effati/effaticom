@@ -22,7 +22,7 @@ body {
 
 @layer base {
   h1 {
-    font-size: clamp(100px, 15vw, 250px);
+    font-size: clamp(50px, 15vw, 250px);
     font-family: "Gloock", serif;
     line-height: 0.8;
     color: var(--foreground);
@@ -33,7 +33,7 @@ body {
   font-family: "Bagel Fat One", serif;
   font-weight: 400;
   font-style: normal;
-  font-size: xx-large;
+  font-size: clamp(18px, 4vw, 30px);
   color: var(--foreground);
 }
 

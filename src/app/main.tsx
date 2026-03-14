@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import HeadViewer from "./head";
+import { pointer, initPointer, cleanupPointer } from "./pointer";
 
 function useGeoGuessrRank() {
   const [rank, setRank] = useState<string | null>(null);
@@ -24,33 +25,15 @@ const ALL_LETTERS = [...LETTERS_1, " ", ...LETTERS_2];
 
 function WobblyText() {
   const letterRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const mouseRef = useRef({ x: -1, y: -1 });
   const scalesRef = useRef<number[]>(ALL_LETTERS.map(() => 0));
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      mouseRef.current.x = e.clientX;
-      mouseRef.current.y = e.clientY;
-    };
-    const onLeave = () => {
-      mouseRef.current.x = -1;
-      mouseRef.current.y = -1;
-    };
-    window.addEventListener("mousemove", onMove);
-    document.documentElement.addEventListener("mouseleave", onLeave);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      document.documentElement.removeEventListener("mouseleave", onLeave);
-    };
-  }, []);
 
   useEffect(() => {
     let animId: number;
 
     const animate = () => {
-      const mx = mouseRef.current.x;
-      const my = mouseRef.current.y;
-      const hasMouse = mx >= 0 && my >= 0;
+      const mx = pointer.x;
+      const my = pointer.y;
+      const hasMouse = pointer.active && pointer.source !== "gyro";
 
       for (let i = 0; i < ALL_LETTERS.length; i++) {
         const el = letterRefs.current[i];
@@ -147,7 +130,6 @@ function WobblyBorder({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
-  const mouseRef = useRef({ x: -1, y: -1 });
 
   const buildPath = useCallback(
     (w: number, h: number, time: number, mx: number, my: number) => {
@@ -231,26 +213,6 @@ function WobblyBorder({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseRef.current.x = e.clientX;
-      mouseRef.current.y = e.clientY;
-    };
-    const handleMouseLeave = () => {
-      mouseRef.current.x = -1;
-      mouseRef.current.y = -1;
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    document.documentElement.addEventListener("mouseleave", handleMouseLeave);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      document.documentElement.removeEventListener(
-        "mouseleave",
-        handleMouseLeave
-      );
-    };
-  }, []);
-
-  useEffect(() => {
     let animId: number;
     let time = 0;
 
@@ -272,12 +234,17 @@ function WobblyBorder({ children }: { children: React.ReactNode }) {
       svg.style.overflow = "visible";
       svg.setAttribute("viewBox", `${-pad} ${-pad} ${w} ${h}`);
 
+      // Use shared pointer — direct interaction for full effect
+      const isDirectInteraction = pointer.active && (pointer.source === "touch" || pointer.source === "mouse");
+      const mx = isDirectInteraction ? pointer.x : -1;
+      const my = isDirectInteraction ? pointer.y : -1;
+
       const d = buildPath(
         container.offsetWidth,
         container.offsetHeight,
         time,
-        mouseRef.current.x,
-        mouseRef.current.y
+        mx,
+        my
       );
       path.setAttribute("d", d);
 
@@ -309,6 +276,11 @@ function WobblyBorder({ children }: { children: React.ReactNode }) {
 
 export const Main = () => {
   const geoRank = useGeoGuessrRank();
+
+  useEffect(() => {
+    initPointer();
+    return cleanupPointer;
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 items-center justify-center min-h-screen p-8 sm:p-20 overflow-x-hidden">

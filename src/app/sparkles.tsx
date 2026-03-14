@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { pointer } from "./pointer";
 
 const POOL_SIZE = 2500;
 const FADE_START = 60;
@@ -113,7 +114,6 @@ function createParticle(): Particle {
 
 export const Sparkles = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: -1, y: -1 });
   const particlesRef = useRef<Particle[]>([]);
 
   if (particlesRef.current.length === 0) {
@@ -170,18 +170,6 @@ export const Sparkles = () => {
     };
     colorQuery.addEventListener("change", onColorChange);
 
-    // Mouse
-    const onMouseMove = (e: MouseEvent) => {
-      mouseRef.current.x = e.clientX;
-      mouseRef.current.y = e.clientY;
-    };
-    const onMouseLeave = () => {
-      mouseRef.current.x = -1;
-      mouseRef.current.y = -1;
-    };
-    window.addEventListener("mousemove", onMouseMove);
-    document.documentElement.addEventListener("mouseleave", onMouseLeave);
-
     // Parse hex color to r,g,b for alpha compositing
     function hexToRgb(hex: string): [number, number, number] {
       hex = hex.replace("#", "");
@@ -197,9 +185,11 @@ export const Sparkles = () => {
 
     const animate = () => {
       time += 0.016;
-      const mx = mouseRef.current.x;
-      const my = mouseRef.current.y;
-      const hasMouse = mx >= 0 && my >= 0;
+      const mx = pointer.x;
+      const my = pointer.y;
+      const isDirectInteraction = pointer.active && (pointer.source === "touch" || pointer.source === "mouse");
+      const isLinger = pointer.active && pointer.source === "linger";
+      const isGyro = pointer.active && pointer.source === "gyro";
       const w = window.innerWidth;
       const h = window.innerHeight;
       const [r, g, b] = hexToRgb(color);
@@ -212,10 +202,11 @@ export const Sparkles = () => {
         const p = particlesRef.current[i];
 
         if (!p.alive) {
-          spawnParticle(p, mx, my, hasMouse, w, h);
+          spawnParticle(p, mx, my, isDirectInteraction, w, h);
         }
 
-        if (hasMouse) {
+        if (isDirectInteraction) {
+          // Touch/mouse: vortex attraction + fade
           const dx = mx - p.px;
           const dy = my - p.py;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -240,7 +231,28 @@ export const Sparkles = () => {
             p.alive = false;
             continue;
           }
+        } else if (isLinger) {
+          // Linger: soft drift toward decaying touch point
+          const dx = mx - p.px;
+          const dy = my - p.py;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 0.1) {
+            const angle = Math.atan2(dy, dx);
+            const falloff = Math.max(0, 1 - dist / 1200);
+            p.vx += Math.cos(angle) * 0.012 * falloff;
+            p.vy += Math.sin(angle) * 0.012 * falloff;
+          }
+          p.opacity = Math.min(1, p.opacity + 0.01);
+        } else if (isGyro) {
+          // Gyro: ambient drift — add tilt to sine/cosine velocities
+          const t = time * p.speed + p.phase;
+          const targetVx = Math.sin(t) * 0.1 + pointer.tiltX * 0.15;
+          const targetVy = Math.cos(t * 0.7) * 0.12 + pointer.tiltY * 0.15;
+          p.vx += (targetVx - p.vx) * 0.01;
+          p.vy += (targetVy - p.vy) * 0.01;
+          p.opacity = Math.min(1, p.opacity + 0.01);
         } else {
+          // Idle: gentle float
           const t = time * p.speed + p.phase;
           const targetVx = Math.sin(t) * 0.1;
           const targetVy = Math.cos(t * 0.7) * 0.12;
@@ -288,8 +300,6 @@ export const Sparkles = () => {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("mousemove", onMouseMove);
-      document.documentElement.removeEventListener("mouseleave", onMouseLeave);
       colorQuery.removeEventListener("change", onColorChange);
     };
   }, []);

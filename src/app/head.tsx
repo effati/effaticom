@@ -1,11 +1,10 @@
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import * as THREE from "three";
+import { pointer } from "./pointer";
 
-const mouse = { x: 0, y: 0, hasMouse: false, screenX: 0, screenY: 0, centerX: 0, centerY: 0 };
-
-function RotatingHead() {
+function RotatingHead({ containerRef }: { containerRef: React.RefObject<HTMLDivElement | null> }) {
   const modelRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
   const angleRef = useRef(0);
@@ -24,19 +23,73 @@ function RotatingHead() {
     const depthRadius = 2.5;
     const verticalRadius = 1;
 
-    let targetX, targetY, targetZ;
+    const isDirectInteraction = pointer.active && (pointer.source === "touch" || pointer.source === "mouse");
+    const isLinger = pointer.active && pointer.source === "linger";
+    const isGyro = pointer.active && pointer.source === "gyro";
 
-    if (mouse.hasMouse) {
+    if (isDirectInteraction) {
+      // Touch/mouse: compute direction from container center to pointer
+      const el = containerRef.current;
+      let normX = 0, normY = 0;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dx = pointer.x - centerX;
+        const dy = pointer.y - centerY;
+        const maxDist = 600;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const scale = Math.min(1, dist / maxDist);
+        normX = (dx / (dist || 1)) * scale;
+        normY = -(dy / (dist || 1)) * scale;
+      }
       const radius = 3.5;
       const maxAngle = Math.PI / 3;
-      const angle = mouse.x * maxAngle;
-      targetX = radius * Math.cos(angle);
-      targetY = -mouse.y * verticalRadius;
-      targetZ = radius * Math.sin(angle);
+      const angle = normX * maxAngle;
+      const targetX = radius * Math.cos(angle);
+      const targetY = -normY * verticalRadius;
+      const targetZ = radius * Math.sin(angle);
+      camera.position.x += (targetX - camera.position.x) * 0.05;
+      camera.position.y += (targetY - camera.position.y) * 0.05;
+      camera.position.z += (targetZ - camera.position.z) * 0.05;
+    } else if (isLinger) {
+      // Linger: soft tracking toward decaying touch position
+      const el = containerRef.current;
+      let normX = 0, normY = 0;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dx = pointer.x - centerX;
+        const dy = pointer.y - centerY;
+        const maxDist = 600;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const scale = Math.min(1, dist / maxDist);
+        normX = (dx / (dist || 1)) * scale;
+        normY = -(dy / (dist || 1)) * scale;
+      }
+      const radius = 3.5;
+      const maxAngle = Math.PI / 3;
+      const angle = normX * maxAngle;
+      const targetX = radius * Math.cos(angle);
+      const targetY = -normY * verticalRadius;
+      const targetZ = radius * Math.sin(angle);
+      camera.position.x += (targetX - camera.position.x) * 0.03;
+      camera.position.y += (targetY - camera.position.y) * 0.03;
+      camera.position.z += (targetZ - camera.position.z) * 0.03;
+    } else if (isGyro) {
+      // Gyro: tiltX/tiltY directly drive camera orbit
+      const radius = 3.5;
+      const maxAngle = Math.PI / 3;
+      const angle = pointer.tiltX * maxAngle;
+      const targetX = radius * Math.cos(angle);
+      const targetY = -pointer.tiltY * verticalRadius;
+      const targetZ = radius * Math.sin(angle);
       camera.position.x += (targetX - camera.position.x) * 0.05;
       camera.position.y += (targetY - camera.position.y) * 0.05;
       camera.position.z += (targetZ - camera.position.z) * 0.05;
     } else {
+      // Idle: auto-orbit
       angleRef.current += 0.01;
       const angle = angleRef.current;
       camera.position.set(
@@ -62,45 +115,13 @@ function RotatingHead() {
 export default function HeadViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      mouse.hasMouse = true;
-      const el = containerRef.current;
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        // Store the center of the container and cursor position
-        mouse.centerX = rect.left + rect.width / 2;
-        mouse.centerY = rect.top + rect.height / 2;
-        mouse.screenX = e.clientX;
-        mouse.screenY = e.clientY;
-        // Direction from head center to cursor, normalized and clamped
-        const dx = e.clientX - mouse.centerX;
-        const dy = e.clientY - mouse.centerY;
-        const maxDist = 600;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const scale = Math.min(1, dist / maxDist);
-        mouse.x = (dx / (dist || 1)) * scale;
-        mouse.y = -(dy / (dist || 1)) * scale;
-      }
-    };
-    const handleMouseLeave = () => {
-      mouse.hasMouse = false;
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    document.documentElement.addEventListener("mouseleave", handleMouseLeave);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      document.documentElement.removeEventListener("mouseleave", handleMouseLeave);
-    };
-  }, []);
-
   return (
     <div ref={containerRef} className="w-full h-full">
     <Canvas camera={{ position: [0, 0, 5] }}>
       <ambientLight intensity={0.8} />
       <directionalLight position={[10, 10, 5]} intensity={1} />
       <pointLight position={[0, 10, 10]} intensity={0.8} />
-      <RotatingHead />
+      <RotatingHead containerRef={containerRef} />
       <OrbitControls
         enableRotate={false}
         enableZoom={false}
